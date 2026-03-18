@@ -1,6 +1,6 @@
 # CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference
 
-Official PyTorch implementation of *“CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference”*.
+Official PyTorch implementation of *“CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference.”*
 
 **Authors**
 
@@ -129,9 +129,9 @@ python cifar10/vgg19/sampler/test.py \
 
 ## Results
 
-### Quantization results
+### Quantitative results
 
-![Quantization results](assets/quant_result.png)
+![Quantitative results](assets/quant_result.png)
 
 ### t-SNE visualization
 
