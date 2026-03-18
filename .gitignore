@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Training artifacts / logs
+logs/
+checkpoints/
+wandb/
+runs/
+*.log
+
+# Data (keep datasets out of git by default)
+data/
+datasets/
+
+# Large model files
+*.pth
+*.pt
+*.ckpt
+
