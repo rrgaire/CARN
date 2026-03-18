@@ -1,6 +1,6 @@
-# CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference (PyTorch)
+# CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference
 
-Official PyTorch implementation of **“CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference”**.
+Official PyTorch implementation of *“CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference”*.
 
 **Authors**
 
@@ -8,9 +8,12 @@ Official PyTorch implementation of **“CARN: Complexity-Aware Routing Network f
   University of Illinois Chicago, Chicago, Illinois  
   `rrgaire@uic.edu`
 - **Arman Roohi**  
-  University of Illinois Chicago, Chicago, Illinois
+  University of Illinois Chicago, Chicago, Illinois  
+  `aroohi@uic.edu`
 
 ---
+
+![CARN framework](assets/framework.png)
 
 ## Abstract
 
@@ -22,17 +25,14 @@ Deep neural networks (DNNs) have achieved remarkable success across various doma
 
 - `cifar10/`, `cifar100/`, `tinyimagenet/`: experiment code by dataset/backbone
 - `test/`: minimal runnable example scripts
-- `assets/`: images/tables for this README (place results here and reference as `assets/<file>`).
+- `assets/`: figures and tables used in this README.
 
 ---
 
 ## Prerequisites
 
-- Python 3.9+ (recommended)
-- PyTorch + torchvision
-- CUDA (optional, recommended for training)
-
-> Note: Some scripts use additional packages (e.g., `wandb`, `thop`, `fvcore`, `tqdm`). See “Installation”.
+- Python **>= 3.9**
+- PyTorch **>= 2.0** and torchvision (install the build appropriate for your system and CUDA runtime)
 
 ---
 
@@ -44,67 +44,110 @@ Create an environment and install dependencies:
 python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install torch torchvision
-pip install wandb thop fvcore tqdm numpy
+pip install -r requirements.txt
 ```
 
-If you prefer CUDA-specific wheels, install PyTorch using the official instructions for your platform.
+Install PyTorch/torchvision separately if needed for your CUDA / platform (recommended). The remaining dependencies are captured in `requirements.txt`.
 
 ---
 
 ## Training
 
-This codebase contains multiple experiment entrypoints under each dataset/backbone directory (e.g., `cifar10/vgg19/sampler/main.py`).
+Experiments are organized by dataset and backbone. For a given dataset/backbone, the typical pipeline consists of:
 
-Typical workflow:
+1. **Individual training** (`indv/`): train the base feature extractor and the unpruned classifier.
+2. **Pruning / expert construction** (`pruning/`, `pruning_v2/`, `pruned_v2/`): construct additional task modules (experts) at different compute budgets.
+3. **Sampler training** (`sampler/`): train the routing network using the task modules and complexity-aware routing objectives.
 
-1. Train (or provide) the feature extractor + task modules (experts).
-2. Train the routing (sampler) network using the provided scripts.
+Below are example commands for **CIFAR-10 / VGG-19**. The same structure is repeated under `cifar100/` and `tinyimagenet/` with corresponding backbones.
 
-Example (CIFAR-10 / VGG-19 sampler training):
+### 1) Individual training (base model)
+
+```bash
+python cifar10/vgg19/indv/main.py \
+  --name C10_VGG19_INDV \
+  --data_path path/to/data \
+  --checkpoint_dir path/to/checkpoints \
+  --log_dir path/to/logs
+```
+
+This stage writes:
+
+- `path/to/checkpoints/C10_VGG19_INDV_fe.pth`
+- `path/to/checkpoints/C10_VGG19_INDV_classifier.pth`
+
+### 2) Pruning / expert construction
+
+The pruning code uses the trained individual checkpoints as initialization and produces pruned classifier checkpoints (experts) at a given ratio.
+
+```bash
+python cifar10/vgg19/pruning_v2/prune.py \
+  --name C10_VGG19 \
+  --ratio 0.5 \
+  --data_path path/to/data \
+  --checkpoint_dir path/to/checkpoints \
+  --log_dir path/to/logs
+```
+
+Run with multiple ratios (e.g., `0.5`, `0.9`) to obtain a set of experts. (If you adapt the pruning scripts to accept explicit `--fe_ckpt` / `--classifier_ckpt` flags, pass those here.)
+
+### 3) Sampler (routing network) training
+
+Provide the feature extractor and the three task modules (e.g., unpruned + two pruned experts) as checkpoint paths:
 
 ```bash
 python cifar10/vgg19/sampler/main.py \
+  --name C10_VGG19_RFC \
   --data_path path/to/data \
   --checkpoint_dir path/to/checkpoints \
   --log_dir path/to/logs \
-  --fe_ckpt path/to/feature_extractor.pth \
-  --classifier1_ckpt path/to/classifier1.pth \
-  --classifier2_ckpt path/to/classifier2.pth \
-  --classifier3_ckpt path/to/classifier3.pth
+  --fe_ckpt path/to/checkpoints/C10_VGG19_INDV_fe.pth \
+  --classifier1_ckpt path/to/checkpoints/C10_VGG19_INDV_classifier.pth \
+  --classifier2_ckpt path/to/checkpoints/path_to_pruned_expert_ratio_0.5.pth \
+  --classifier3_ckpt path/to/checkpoints/path_to_pruned_expert_ratio_0.9.pth
 ```
 
 ---
 
-## Inference
+## Testing (Inference)
 
-After training, you can evaluate the learned routing + task model using the corresponding `test.py` scripts (located under the relevant `*/sampler/` directories).
+Evaluation entrypoints live under the corresponding `*/sampler/test.py`.
 
-> The evaluation scripts currently expect checkpoint paths to be passed explicitly (no machine-specific absolute paths).
+Example (CIFAR-10 / VGG-19):
+
+```bash
+python cifar10/vgg19/sampler/test.py \
+  --name C10_VGG19_RFC \
+  --data_path path/to/data \
+  --checkpoint_dir path/to/checkpoints \
+  --log_dir path/to/logs \
+  --task_model_ckpt path/to/checkpoints/task_model.pth \
+  --sampler_ckpt path/to/checkpoints/C10_VGG19_RFC_sampler.pth
+```
 
 ---
 
 ## Results
 
-Add plots/tables to `assets/` and reference them here, for example:
+### Quantization results
 
-- `assets/results_cifar10.png`
-- `assets/results_tinyimagenet.png`
+![Quantization results](assets/quant_result.png)
+
+### t-SNE visualization
+
+![t-SNE visualization](assets/tsne.png)
 
 ---
 
 ## Citation
 
-If you use this codebase in your research, please cite:
-
 ```bibtex
-@inproceedings{gaire2026carn,
-  title     = {CARN: Complexity-Aware Routing Network for Efficient and Adaptive Inference},
-  author    = {Gaire, Rebati and Roohi, Arman},
-  booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
-  year      = {2026}
+@inproceedings{gaire2025carn,
+  title={Carn: Complexity-aware routing network for efficient and adaptive inference},
+  author={Gaire, Rebati and Roohi, Arman},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={3318--3326},
+  year={2025}
 }
 ```
-
-> Update the venue/year/metadata above to match the final published version of the paper.
 

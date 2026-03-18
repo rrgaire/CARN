@@ -6,6 +6,7 @@ import wandb
 import os
 import logging
 import torch_pruning as tp
+from pathlib import Path
 
 from utils import *
 from models import *
@@ -35,6 +36,8 @@ def get_args():
     parser.add_argument('--log_dir', type=str, default='logs/', help='Directory to save logs')
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints/', help='Directory to save checkpoints')
     parser.add_argument('--wandb', action='store_true', help='Enable Weights & Biases logging')  # Add this line
+    parser.add_argument('--task_model_ckpt', type=str, default='path/to/task_model.pth', help='Path to saved task model (.pth)')
+    parser.add_argument('--sampler_ckpt', type=str, default='path/to/sampler.pth', help='Path to sampler state_dict (.pth)')
 
     return parser.parse_args()
 
@@ -199,11 +202,16 @@ def main():
     # module_3 = torch.load('/home/rrgaire/projects/iccv/paper/cifar10/vgg19/pruning_v2/checkpoints/C10_VGG19_ratio_0.9_4_classifier.pth')
 
     # task_model = TaskModel(fe, module_1, module_2, module_3, False)
-    task_model = torch.load('/home/rrgaire/projects/iccv/paper/cifar10/vgg19/sampler/checkpoints/task_model.pth')
+    if not Path(args.task_model_ckpt).exists():
+        raise FileNotFoundError(f"Task model checkpoint not found: {args.task_model_ckpt}")
+    if not Path(args.sampler_ckpt).exists():
+        raise FileNotFoundError(f"Sampler checkpoint not found: {args.sampler_ckpt}")
+
+    task_model = torch.load(args.task_model_ckpt, map_location='cpu')
     task_model = task_model.to(args.device)
 
     sampler = Sampler(num_modules=3)
-    sampler.load_state_dict(torch.load('/home/rrgaire/projects/iccv/paper/cifar10/vgg19/sampler/checkpoints/C10_VGG19_RFC__sampler.pth'))
+    sampler.load_state_dict(torch.load(args.sampler_ckpt, map_location='cpu'))
     
     sampler = sampler.to(args.device)
     sampler.eval()

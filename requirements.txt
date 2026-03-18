@@ -1,0 +1,9 @@
+numpy>=1.23
+tqdm>=4.66
+wandb>=0.16
+thop>=0.1.1
+fvcore>=0.1.5
+torch-pruning>=1.4.0
+matplotlib>=3.7
+seaborn>=0.13
+scikit-learn>=1.3
